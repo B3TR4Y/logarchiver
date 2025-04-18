@@ -23,33 +23,43 @@ func NewS3Client(client *minio.Client, bucketName string) *S3Client {
 }
 
 func (c *S3Client) GetTicket(ctx context.Context, guildId uint64, ticketId int) ([]byte, error) {
-	// Print out all the inputs to the function
-	// Test
 	fmt.Printf("GetTicket called with guildId: %d, ticketId: %d\n", guildId, ticketId)
 	fmt.Printf("Context: %v\n", ctx)
 
 	key := fmt.Sprintf("%d/%d", guildId, ticketId)
-
 	fmt.Printf("Generated key: %s\n", key)
 
-	object, err := c.client.GetObject(ctx, c.bucketName, key, minio.GetObjectOptions{})
+	// Step 1: Stat the object to get ETag
+	info, err := c.client.StatObject(ctx, c.bucketName, key, minio.StatObjectOptions{})
 	if err != nil {
 		if isNotFoundErr(err) {
 			return nil, ErrTicketNotFound
-		} else {
-			return nil, err
 		}
+		return nil, err
 	}
 
-	defer object.Close()
+	etag := info.ETag
+	fmt.Printf("Original ETag: %s\n", etag)
 
-	if _, err := object.Stat(); err != nil {
+	// Step 2: Strip "W/" prefix and quotes (if any)
+	etag = strings.TrimPrefix(etag, "W/")
+	etag = strings.Trim(etag, "\"")
+
+	fmt.Printf("Cleaned ETag: %s\n", etag)
+
+	// Step 3: Use If-Match with the cleaned ETag
+	opts := minio.GetObjectOptions{}
+	opts.SetMatchETag(etag)
+
+	// Step 4: Get the object
+	object, err := c.client.GetObject(ctx, c.bucketName, key, opts)
+	if err != nil {
 		if isNotFoundErr(err) {
 			return nil, ErrTicketNotFound
-		} else {
-			return nil, err
 		}
+		return nil, err
 	}
+	defer object.Close()
 
 	var buff bytes.Buffer
 	if _, err := buff.ReadFrom(object); err != nil {
@@ -58,6 +68,7 @@ func (c *S3Client) GetTicket(ctx context.Context, guildId uint64, ticketId int) 
 
 	return buff.Bytes(), nil
 }
+
 
 func (c *S3Client) StoreTicket(ctx context.Context, guildId uint64, ticketId int, data []byte) error {
 	key := fmt.Sprintf("%d/%d", guildId, ticketId)
