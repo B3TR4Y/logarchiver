@@ -24,7 +24,7 @@ func NewS3Client(client *minio.Client, bucketName string) *S3Client {
 
 func (c *S3Client) GetTicket(ctx context.Context, guildId uint64, ticketId int) ([]byte, error) {
 	// Print out all the inputs to the function
-	
+	// Test
 	fmt.Printf("GetTicket called with guildId: %d, ticketId: %d\n", guildId, ticketId)
 	fmt.Printf("Context: %v\n", ctx)
 
