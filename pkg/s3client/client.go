@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"github.com/TicketsBot/logarchiver/pkg/repository/model"
 	"github.com/minio/minio-go/v7"
 )
